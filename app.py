@@ -1,7 +1,18 @@
 from flask import Flask,render_template,url_for,request,redirect 
 from features import phishing
+import yaml
+from flask_mysqldb import MySQL
 
 app=Flask(__name__)
+
+db = yaml.load(open('db.yaml'))
+app.config['MYSQL_HOST'] = db['mysql_host']
+app.config['MYSQL_USER'] = db['mysql_user']
+app.config['MYSQL_PASSWORD'] = db['mysql_password']
+app.config['MYSQL_DB'] = db['mysql_db']
+
+mysql = MySQL(app)
+
 
 @app.route('/',methods=["GET","POST"])
 def index():
@@ -9,6 +20,7 @@ def index():
 	warnings = []
 	if request.method == "POST":
 		url = request.form.get('url')
+		cursor = mysql.connection.cursor()
 
 		if(url=="" or url.count('.')==0):
 			return render_template('searchpage.html',output="evu")
@@ -23,6 +35,12 @@ def index():
 			output="evu"
 		else:
 			output = "Phishing"
+			
+		#save in database
+        	cursor.execute(
+            		"INSERT INTO res_table(url, output) VALUES(%s , %s)", (url, output))
+        	mysql.connection.commit()
+        	# cursor.close()
 	return render_template('searchpage.html', output = output, warnings = warnings)
 
 @app.after_request
